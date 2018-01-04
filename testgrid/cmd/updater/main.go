@@ -34,6 +34,7 @@ import (
 
 	"k8s.io/test-infra/testgrid/config"
 	"k8s.io/test-infra/testgrid/state"
+	"k8s.io/test-infra/testgrid/summary"
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
@@ -635,6 +636,7 @@ func main() {
 	o := "ci-kubernetes-test-go"
 	o = "ci-kubernetes-node-kubelet-stable3"
 
+	var _ summary.Summary
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {

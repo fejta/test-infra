@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+// Summary for a dashboard
+message Summary {
+  repeated TabSummary tabs = 1;
+}
+
+// Summary for a tab
+message TabSummary {
+  string dashboard = 1; // Dashboard name
+  string name = 2;  // Tab name
+  string alert = 3; // Not sure what this does??
+  repeated Outage outages = 4;
+  double updated = 5;  // Python time.time() of last update
+  string status_message = 6;
+
+  enum TabStatus {
+    ZERO = 0;
+    UNKNOWN = 1;
+    PASS = 2; // Only passing builds
+    FAIL = 3; // Outages present
+    FLAKY = 4; // Failing builds without an outage
+    STALE = 5; // No recent results
+  }
+
+  TabStatus status = 7; // Overall status for tab
+  string latest_green = 8;  // Most recent passing BUILD_NUMBER
+  double latest_run = 9;  // Python time.time() of most recent run
+}
+
+message Outage {
+  string name = 1;  // Test name, which may process id
+  string id = 2;  // Row id, such as bazel target or golang package.
+  string fail_build = 3;  // Earliest build column where failure began
+  double fail_stamp = 4;  // Timestamp for this build
+  string pass_build = 5;  // Latest build column prior to the outage
+  double pass_stamp = 6;  // Timestamp for this build
+  int32 failures = 7;  // Number of failures
+  string search_url = 8;  // URL to search for commits that broke tests
+  reserved 9;  // Unused description of search. TODO(fejta): add back?
+  string search_text = 10; // Text for search link
+  string message = 11; // Associated message
+  repeated string issues = 12;  // Issues associated with the outage
+  string fail_url = 13; // URL to earliest build comun where failure began
+}

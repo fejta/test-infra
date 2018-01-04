@@ -1,6 +1,11 @@
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 
 proto_library(
+    name = "summary_proto",
+    srcs = ["summary.proto"],
+)
+
+proto_library(
     name = "state_proto",
     srcs = ["state.proto"],
 )
@@ -8,6 +13,13 @@ proto_library(
 proto_library(
     name = "config_proto",
     srcs = ["config.proto"],
+)
+
+go_proto_library(
+    name = "summary",
+    importpath = "k8s.io/test-infra/testgrid/summary",
+    proto = ":summary_proto",
+    visibility = ["//visibility:public"],
 )
 
 go_proto_library(
