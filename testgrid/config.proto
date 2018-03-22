@@ -210,6 +210,9 @@ message DashboardTabAlertOptions {
 
   // The comma-separated addresses to send mail.
   string alert_mail_to_addresses = 3;
+
+  // Number of consecutive passes to disable alert
+  int32 num_passes_to_disable_alert = 4;
 }
 
 // Specifies a dashboard group.
