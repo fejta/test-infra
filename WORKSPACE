@@ -13,14 +13,21 @@ git_repository(
     commit = "6b39964af66c98580be4c5ac6cf1d243332f78e4",
     remote = "https://github.com/bazelbuild/rules_go.git",
 )
+http_archive(
+    name = "bazel_gazelle",
+    url = "https://github.com/bazelbuild/bazel-gazelle/releases/download/0.10.1/bazel-gazelle-0.10.1.tar.gz",
+    sha256 = "d03625db67e9fb0905bbd206fa97e32ae9da894fe234a493e7517fd25faec914",
+)
 
 load("@io_bazel_rules_go//go:def.bzl", "go_rules_dependencies", "go_register_toolchains")
 
 go_rules_dependencies()
-
 go_register_toolchains(
     go_version = "1.9.3",
 )
+
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
+gazelle_dependencies()
 
 git_repository(
     name = "io_bazel_rules_k8s",
@@ -442,3 +449,12 @@ pip_import(
 
 load("@kettle_deps//:requirements.bzl", "pip_install")
 pip_install()
+
+load("//autogo:deps.bzl", "autogo_dependencies")
+autogo_dependencies()
+load("//autogo:def.bzl", "autogo_generate")
+autogo_generate(
+    name = "autogo",
+    prefix = "k8s.io/test-infra",
+)
+

@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_prefix")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_prefix")
 load("@io_kubernetes_build//defs:run_in_workspace.bzl", "workspace_binary")
 
 go_prefix("k8s.io/test-infra")
@@ -63,5 +63,25 @@ filegroup(
         "//vendor:all-srcs",
     ],
     tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
+
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+gazelle(
+    name = "gazelle",
+    prefix = "k8s.io/test-infra",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["hi.go"],
+    importpath = "k8s.io/test-infra",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "test-infra",
+    embed = [":go_default_library"],
     visibility = ["//visibility:public"],
 )
