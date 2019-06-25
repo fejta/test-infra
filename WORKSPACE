@@ -155,8 +155,8 @@ git_repository(
 # https://github.com/bazelbuild/rules_nodejs
 http_archive(
     name = "build_bazel_rules_nodejs",
-    sha256 = "bc180118b9e1c7f2b74dc76a8f798d706fe9fc53470ef9296728267b4cd29441",
-    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/0.30.2/rules_nodejs-0.30.2.tar.gz"],
+    sha256 = "6d4edbf28ff6720aedf5f97f9b9a7679401bf7fca9d14a0fff80f644a99992b4",
+    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/0.32.2/rules_nodejs-0.32.2.tar.gz"],
 )
 
 load("@build_bazel_rules_nodejs//:defs.bzl", "yarn_install")
