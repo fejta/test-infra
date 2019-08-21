@@ -7,8 +7,11 @@ require (
 	github.com/Azure/azure-pipeline-go v0.1.9 // indirect
 	github.com/Azure/azure-sdk-for-go v21.1.0+incompatible
 	github.com/Azure/azure-storage-blob-go v0.0.0-20190123011202-457680cc0804
-	github.com/Azure/go-autorest v11.1.0+incompatible
-	github.com/Microsoft/go-winio v0.4.12 // indirect
+	github.com/Azure/go-autorest/autorest v0.9.0
+	github.com/Azure/go-autorest/autorest/adal v0.6.0
+	github.com/Azure/go-autorest/autorest/to v0.3.0 // indirect
+	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
+	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/NYTimes/gziphandler v0.0.0-20160419202541-63027b26b87e
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
@@ -84,7 +87,8 @@ require (
 	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/rogpeppe/go-internal v1.3.0 // indirect
 	github.com/satori/go.uuid v0.0.0-20160713180306-0aa62d5ddceb
-	github.com/shurcooL/githubv4 v0.0.0-20180925043049-51d7b505e2e9
+	github.com/shurcooL/githubv4 v0.0.0-20190718010115-4ba037080260
+	github.com/shurcooL/graphql v0.0.0-20181231061246-d48a9a75455f // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.3
