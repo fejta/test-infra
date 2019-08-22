@@ -60,6 +60,8 @@ sh_test(
     data = [
         ":boilerplate/boilerplate.generated.go.txt",
         ":update-codegen",
+        "//:go.mod",
+        "//:go.sum",
         "@//:all-srcs",
         "@go_sdk//:files",
         "@io_k8s_code_generator//cmd/client-gen",
@@ -81,6 +83,8 @@ sh_binary(
     ],
     data = [
         ":boilerplate/boilerplate.generated.go.txt",
+        "//:go.mod",
+        "//:go.sum",
         "@go_sdk//:files",
         "@io_k8s_code_generator//cmd/client-gen",
         "@io_k8s_code_generator//cmd/deepcopy-gen",
