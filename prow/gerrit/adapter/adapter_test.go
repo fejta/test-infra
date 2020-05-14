@@ -31,6 +31,7 @@ import (
 	prowapi "k8s.io/test-infra/prow/apis/prowjobs/v1"
 	prowfake "k8s.io/test-infra/prow/client/clientset/versioned/fake"
 	"k8s.io/test-infra/prow/config"
+	reporter "k8s.io/test-infra/prow/crier/reporters/gerrit"
 )
 
 func makeStamp(t time.Time) gerrit.Timestamp {
@@ -192,6 +193,133 @@ func TestCreateRefs(t *testing.T) {
 	}
 	if !equality.Semantic.DeepEqual(expected, actual) {
 		t.Errorf("diff between expected and actual refs:%s", diff.ObjectReflectDiff(expected, actual))
+	}
+}
+
+func TestParseReports(t *testing.T) {
+	const (
+		me      = 314159
+		stan    = 666
+		apples  = "apples"
+		bananas = "bananas"
+	)
+	current := time.Now()
+	message := func(msg string, patch func(*gerrit.ChangeMessageInfo)) gerrit.ChangeMessageInfo {
+		var out gerrit.ChangeMessageInfo
+		out.Author.AccountID = me
+		out.Message = msg
+		out.Tag = apples
+		out.Date.Time = current
+		current = current.Add(time.Minute)
+		if patch != nil {
+			patch(&out)
+		}
+		return out
+	}
+	job := func(name, url string, state prowapi.ProwJobState) *prowapi.ProwJob {
+		var out prowapi.ProwJob
+		out.Spec.Job = name
+		out.Status.URL = url
+		out.Status.State = state
+		return &out
+	}
+
+	genericReport := reporter.GenerateReport([]*prowapi.ProwJob{
+		job("first-pass", "first", prowapi.SuccessState),
+		job("second-fail", "second", prowapi.FailureState),
+	})
+	anotherGenericReport := reporter.GenerateReport([]*prowapi.ProwJob{
+		job("another-first-pass", "another-first", prowapi.SuccessState),
+		job("another-second-fail", "another-second", prowapi.FailureState),
+	})
+	cases := []struct {
+		name     string
+		messages []gerrit.ChangeMessageInfo
+		expected map[string]reporter.JobReport
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "report parses",
+			messages: []gerrit.ChangeMessageInfo{
+				message("ignore this", nil),
+				message(genericReport.String(), nil),
+				message("also ignore this", nil),
+			},
+			expected: map[string]reporter.JobReport{
+				apples: genericReport,
+			},
+		},
+		{
+			name: "ignore report from someone else",
+			messages: []gerrit.ChangeMessageInfo{
+				message(genericReport.String(), nil),
+				message(anotherGenericReport.String(), func(change *gerrit.ChangeMessageInfo) {
+					change.Author.AccountID = stan
+				}),
+			},
+			expected: map[string]reporter.JobReport{
+				apples: genericReport,
+			},
+		},
+		{
+			name: "ignore my earlier report",
+			messages: []gerrit.ChangeMessageInfo{
+				message(genericReport.String(), nil),
+				message(anotherGenericReport.String(), nil),
+			},
+			expected: map[string]reporter.JobReport{
+				apples: anotherGenericReport,
+			},
+		},
+		{
+			// https://en.wikipedia.org/wiki/Gravitational_redshift
+			name: "handle gravitationally redshifted results",
+			messages: []gerrit.ChangeMessageInfo{
+				message(genericReport.String(), nil),
+				message(anotherGenericReport.String(), func(change *gerrit.ChangeMessageInfo) {
+					change.Date.Time = change.Date.Time.Add(-time.Hour)
+				}),
+			},
+			expected: map[string]reporter.JobReport{
+				apples: genericReport,
+			},
+		},
+		{
+			name: "process my latest report for each label",
+			messages: []gerrit.ChangeMessageInfo{
+				message(reporter.GenerateReport([]*prowapi.ProwJob{
+					job("ignore-me", "wut", prowapi.FailureState),
+				}).String(), func(change *gerrit.ChangeMessageInfo) {
+					change.Tag = bananas
+				}),
+				message(anotherGenericReport.String(), nil),
+				message(reporter.GenerateReport([]*prowapi.ProwJob{
+					job("fun-times", "yay", prowapi.SuccessState),
+				}).String(), func(change *gerrit.ChangeMessageInfo) {
+					change.Tag = bananas
+				}),
+				message(genericReport.String(), nil),
+			},
+			expected: map[string]reporter.JobReport{
+				apples: genericReport,
+				bananas: reporter.GenerateReport([]*prowapi.ProwJob{
+					job("fun-times", "yay", prowapi.SuccessState),
+				}),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual, expected := parseReports(me, tc.messages...), tc.expected; !equality.Semantic.DeepEqual(expected, actual) {
+				t.Errorf(diff.ObjectReflectDiff(expected, actual))
+				t.Error(tc.expected[bananas])
+				t.Error(actual[bananas])
+				t.Error(actual[bananas].Total)
+			}
+		})
 	}
 }
 

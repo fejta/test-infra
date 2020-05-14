@@ -168,6 +168,28 @@ func createRefs(reviewHost string, change client.ChangeInfo, cloneURI *url.URL, 
 	return refs, nil
 }
 
+func parseReports(account int, messages ...gerrit.ChangeMessageInfo) map[string]reporter.JobReport {
+	latestReports := map[string]reporter.JobReport{}
+	latestTimes := map[string]time.Time{}
+	for _, message := range messages {
+		// If message status report is not from the prow account ignore
+		if message.Author.AccountID != account {
+			continue
+		}
+		tag := message.Tag
+		if latest, present := latestTimes[tag]; present && message.Date.Before(latest) {
+			continue
+		}
+		report := reporter.ParseReport(message.Message)
+		if report == nil {
+			continue
+		}
+		latestReports[tag] = *report
+		latestTimes[tag] = message.Date.Time
+	}
+	return latestReports
+}
+
 // ProcessChange creates new presubmit prowjobs base off the gerrit changes
 func (c *Controller) ProcessChange(instance string, change client.ChangeInfo) error {
 	logger := logrus.WithField("gerrit change", change.Number)
@@ -222,31 +244,15 @@ func (c *Controller) ProcessChange(instance string, change client.ChangeInfo) er
 		presubmits := c.config().PresubmitsStatic[cloneURI.String()]
 		presubmits = append(presubmits, c.config().PresubmitsStatic[cloneURI.Host+"/"+cloneURI.Path]...)
 
-		var filters []pjutil.Filter
-		var latestReport *reporter.JobReport
-		var latestReportTime time.Time
 		account := c.gc.Account(instance)
 		// Should not happen, since this means auth failed
 		if account == nil {
 			return fmt.Errorf("unable to get gerrit account")
 		}
 
-		for _, message := range change.Messages {
-			// If message status report is not from the prow account ignore
-			if message.Author.AccountID != account.AccountID {
-				continue
-			}
-			if message.Date.Before(latestReportTime) {
-				continue
-			}
-			report := reporter.ParseReport(message.Message)
-			if report != nil {
-				latestReport = report
-				latestReportTime = message.Date.Time
-			}
-		}
-		if latestReport != nil {
-			logger.Infof("Found latest report: %s", latestReport)
+		latestReports := parseReports(account.AccountID, change.Messages...)
+		if n := len(latestReports); n > 0 {
+			logger.Infof("Found latest reports for %d labels: %v", n, latestReports)
 		}
 
 		lastUpdate, ok := c.tracker.Current()[instance][change.Project]
@@ -255,11 +261,10 @@ func (c *Controller) ProcessChange(instance string, change client.ChangeInfo) er
 			lastUpdate = time.Now()
 		}
 
-		filter, err := messageFilter(lastUpdate, change, presubmits, latestReport, logger)
-		if err != nil {
-			logger.WithError(err).Warn("failed to create filter on messages for presubmits")
-		} else {
-			filters = append(filters, filter)
+		failed, all := presubmitContexts(presubmits, latestReports, logger)
+		messages := currentMessages(change, lastUpdate)
+		filters := []pjutil.Filter{
+			messageFilter(messages, failed, all, logger),
 		}
 		if change.Revisions[change.CurrentRevision].Created.Time.After(lastUpdate) {
 			filters = append(filters, pjutil.TestAllFilter())
