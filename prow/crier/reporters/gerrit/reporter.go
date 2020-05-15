@@ -71,7 +71,10 @@ type Client struct {
 
 // Job is the view of a prowjob scoped for a report
 type Job struct {
-	Name, State, Icon, URL string
+	Name string
+	State v1.ProwJobState
+	Icon string
+	URL string
 }
 
 // JobReport is the structured job report format
@@ -259,15 +262,17 @@ func statusIcon(state v1.ProwJobState) string {
 }
 
 func jobFromPJ(pj *v1.ProwJob) Job {
-	return Job{Name: pj.Spec.Job, State: string(pj.Status.State), Icon: statusIcon(pj.Status.State), URL: pj.Status.URL}
+	return Job{Name: pj.Spec.Job, State: pj.Status.State, Icon: statusIcon(pj.Status.State), URL: pj.Status.URL}
 }
 
 func (j *Job) serialize() string {
-	return fmt.Sprintf(jobReportFormat, j.Icon, j.Name, strings.ToUpper(j.State), j.URL)
+	return fmt.Sprintf(jobReportFormat, j.Icon, j.Name, strings.ToUpper(string(j.State)), j.URL)
 }
 
 func deserialize(s string, j *Job) error {
-	n, err := fmt.Sscanf(s, jobReportFormat, &j.Icon, &j.Name, &j.State, &j.URL)
+	var state
+	n, err := fmt.Sscanf(s, jobReportFormat, &j.Icon, &j.Name, &state, &j.URL)
+	j.State = v1.ProwJobState(state)
 	if err != nil {
 		return err
 	}
@@ -323,7 +328,7 @@ func ParseReport(message string) *JobReport {
 			logrus.Warnf("Could not deserialize %s to a job: %v", contents[i], err)
 		}
 		report.Total++
-		if j.State == string(v1.SuccessState) {
+		if j.State == v1.SuccessState {
 			report.Success++
 		}
 		report.Jobs = append(report.Jobs, j)

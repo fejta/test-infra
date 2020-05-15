@@ -196,7 +196,7 @@ func TestCreateRefs(t *testing.T) {
 	}
 }
 
-func TestParseReports(t *testing.T) {
+func TestFailingJobs(t *testing.T) {
 	const (
 		me      = 314159
 		stan    = 666
@@ -235,7 +235,7 @@ func TestParseReports(t *testing.T) {
 	cases := []struct {
 		name     string
 		messages []gerrit.ChangeMessageInfo
-		expected map[string]reporter.JobReport
+		expected sets.String
 	}{
 		{
 			name: "basically works",

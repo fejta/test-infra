@@ -30,35 +30,6 @@ import (
 	"k8s.io/test-infra/prow/pjutil"
 )
 
-// presubmitContexts returns the set of failing and all job names contained in the reports.
-func presubmitContexts(presubmits []config.Presubmit, reports map[string]reporter.JobReport, logger *logrus.Entry) (sets.String, sets.String) {
-	failed := sets.String{}
-	duplicates := sets.String{}
-	for _, latestReport := range reports {
-		for _, job := range latestReport.Jobs {
-			name := job.Name
-			const (
-				failure = string(v1.FailureState)
-				errored = string(v1.ErrorState)
-			)
-			if state := strings.ToLower(job.State); state != failure && state != errored {
-				continue
-			}
-			if failed.Has(name) && !duplicates.Has(name) {
-				duplicates.Insert(name)
-				logger.Warnf("Duplicate %s reports", name)
-			}
-			failed.Insert(name)
-		}
-	}
-	allContexts := sets.String{}
-	for _, presubmit := range presubmits {
-		allContexts.Insert(presubmit.Name) // TODO(fejta): shouldn't this be context?
-	}
-	failedContexts := allContexts.Intersection(failed)
-	return failedContexts, allContexts
-}
-
 // currentMessages returns messages on the current revision after the specified time.
 func currentMessages(change gerrit.ChangeInfo, since time.Time) []string {
 	var messages []string

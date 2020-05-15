@@ -26,6 +26,7 @@ import (
 
 	"github.com/andygrunwald/go-gerrit"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	prowapi "k8s.io/test-infra/prow/apis/prowjobs/v1"
 	prowv1 "k8s.io/test-infra/prow/client/clientset/versioned/typed/prowjobs/v1"
@@ -168,26 +169,32 @@ func createRefs(reviewHost string, change client.ChangeInfo, cloneURI *url.URL, 
 	return refs, nil
 }
 
-func parseReports(account int, messages ...gerrit.ChangeMessageInfo) map[string]reporter.JobReport {
-	latestReports := map[string]reporter.JobReport{}
-	latestTimes := map[string]time.Time{}
+func failingJobs(account int, messages ...gerrit.ChangeMessageInfo) sets.String {
+	failures := sets.String{}
+	times := map[string]time.Time{}
 	for _, message := range messages {
 		// If message status report is not from the prow account ignore
 		if message.Author.AccountID != account {
-			continue
-		}
-		tag := message.Tag
-		if latest, present := latestTimes[tag]; present && message.Date.Before(latest) {
 			continue
 		}
 		report := reporter.ParseReport(message.Message)
 		if report == nil {
 			continue
 		}
-		latestReports[tag] = *report
-		latestTimes[tag] = message.Date.Time
+		for _, job := range report {
+			name := job.Name
+			if latest, present := times[name]; present && message.Date.Before(latest) {
+				continue
+			}
+			times[name] = message.Date.Time
+			if job.State == v1.FailureState || job.State == v1.ErrorState {
+				failures.Insert(name)
+			} else {
+				failures.Delete(name)
+			}
+		}
 	}
-	return latestReports
+	return failures
 }
 
 // ProcessChange creates new presubmit prowjobs base off the gerrit changes
@@ -250,10 +257,6 @@ func (c *Controller) ProcessChange(instance string, change client.ChangeInfo) er
 			return fmt.Errorf("unable to get gerrit account")
 		}
 
-		latestReports := parseReports(account.AccountID, change.Messages...)
-		if n := len(latestReports); n > 0 {
-			logger.Infof("Found latest reports for %d labels: %v", n, latestReports)
-		}
 
 		lastUpdate, ok := c.tracker.Current()[instance][change.Project]
 		if !ok {
@@ -261,8 +264,13 @@ func (c *Controller) ProcessChange(instance string, change client.ChangeInfo) er
 			lastUpdate = time.Now()
 		}
 
-		failed, all := presubmitContexts(presubmits, latestReports, logger)
 		messages := currentMessages(change, lastUpdate)
+		failed := failingJobs(account.AccountID, change.Messages...)
+		all := sets.String{}
+		for _, presubmit := range presubmits {
+			// TODO(fejta): this should be context, need to fix reporter though
+			all.Insert(presubmit.Name)
+		}
 		filters := []pjutil.Filter{
 			messageFilter(messages, failed, all, logger),
 		}
